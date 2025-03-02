@@ -1,0 +1,116 @@
+﻿<!DOCTYPE html>
+<html lang="ar">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ديوني واجبة السداد</title>
+    <style>
+        body { font-family: Arial, sans-serif; text-align: center; direction: rtl; }
+        input, button { margin: 5px; padding: 10px; }
+        .debt { border: 1px solid #ccc; padding: 10px; margin: 5px; }
+    </style>
+</head>
+<body>
+
+    <h2>هذا التطبيق هدية لكل مسلم، لحفظ ديونه كأمانة تُسدد بعد وفاته</h2>
+    <h2>ديوني واجبة السداد بعد الوفاة</h2>
+    <input type="text" id="creditor" placeholder="اسم الدائن">
+    <input type="text" id="phone" placeholder="رقم الهاتف">
+    <input type="number" id="amount" placeholder="المبلغ">
+    <input type="text" id="currency" placeholder="العملة">
+    <input type="date" id="debtDate" placeholder="تاريخ الدين">
+    <button onclick="addDebt()">إضافة الدين</button>
+    <button onclick="printDebts()">طباعة الديون</button>
+    <button onclick="downloadDebts()">تحميل الديون</button>
+    <button onclick="exportToExcel()">تصدير إلى Excel</button>
+    <button onclick="exportToPDF()">تصدير إلى PDF</button>
+    <div id="debtList"></div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script>
+        function loadDebts() {
+            document.getElementById('debtList').innerHTML = '';
+            let debts = JSON.parse(localStorage.getItem('debts')) || [];
+            debts.forEach((debt, index) => {
+                let div = document.createElement('div');
+                div.className = 'debt';
+                div.innerHTML = `
+                    <p><strong>الدائن:</strong> ${debt.creditor}</p>
+                    <p><strong>الهاتف:</strong> ${debt.phone}</p>
+                    <p><strong>المبلغ:</strong> ${debt.amount} ${debt.currency}</p>
+                    <p><strong>تاريخ الدين:</strong> ${debt.debtDate}</p>
+                    <button onclick="deleteDebt(${index})">حذف</button>
+                    <a href="https://wa.me/${debt.phone}" target="_blank">مراسلة عبر واتساب</a>
+                `;
+                document.getElementById('debtList').appendChild(div);
+            });
+        }
+
+        function addDebt() {
+            let creditor = document.getElementById('creditor').value;
+            let phone = document.getElementById('phone').value;
+            let amount = document.getElementById('amount').value;
+            let currency = document.getElementById('currency').value;
+            let debtDate = document.getElementById('debtDate').value;
+            if (creditor && phone && amount && currency && debtDate) {
+                let debts = JSON.parse(localStorage.getItem('debts')) || [];
+                debts.push({ creditor, phone, amount, currency, debtDate });
+                localStorage.setItem('debts', JSON.stringify(debts));
+                document.querySelectorAll('input').forEach(input => input.value = '');
+                loadDebts();
+            }
+        }
+
+        function deleteDebt(index) {
+            let debts = JSON.parse(localStorage.getItem('debts')) || [];
+            debts.splice(index, 1);
+            localStorage.setItem('debts', JSON.stringify(debts));
+            loadDebts();
+        }
+
+        function printDebts() {
+            let debts = JSON.parse(localStorage.getItem('debts')) || [];
+            let printWindow = window.open('', '', 'width=800,height=600');
+            printWindow.document.write('<html><head><title>طباعة الديون</title></head><body><h2>قائمة الديون</h2><ul>');
+            debts.forEach(debt => {
+                printWindow.document.write(`<li>${debt.creditor} - ${debt.phone} - ${debt.amount} ${debt.currency} - ${debt.debtDate}</li>`);
+            });
+            printWindow.document.write('</ul></body></html>');
+            printWindow.document.close();
+            printWindow.print();
+        }
+
+        function downloadDebts() {
+            let debts = JSON.parse(localStorage.getItem('debts')) || [];
+            let text = debts.map(d => `${d.creditor} - ${d.phone} - ${d.amount} ${d.currency} - ${d.debtDate}`).join('\n');
+            let blob = new Blob([text], { type: 'text/plain' });
+            let link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = 'debt_list.txt';
+            link.click();
+        }
+
+        function exportToExcel() {
+            let debts = JSON.parse(localStorage.getItem('debts')) || [];
+            let worksheet = XLSX.utils.json_to_sheet(debts);
+            let workbook = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(workbook, worksheet, 'Debts');
+            XLSX.writeFile(workbook, 'debt_list.xlsx');
+        }
+
+        function exportToPDF() {
+            const { jsPDF } = window.jspdf;
+            let debts = JSON.parse(localStorage.getItem('debts')) || [];
+            let doc = new jsPDF();
+            debts.forEach((debt, index) => {
+                doc.text(`${debt.creditor} - ${debt.phone} - ${debt.amount} ${debt.currency} - ${debt.debtDate}`, 10, 10 + (index * 10));
+            });
+            doc.save('debt_list.pdf');
+        }
+
+        loadDebts();
+    </script>
+
+</body>
+</html>
